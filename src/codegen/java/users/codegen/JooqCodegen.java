@@ -9,14 +9,14 @@ import org.jooq.meta.jaxb.Generator;
 import org.jooq.meta.jaxb.Generate;
 import org.jooq.meta.jaxb.Jdbc;
 import org.jooq.meta.jaxb.Target;
-import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 
 public final class JooqCodegen {
     private JooqCodegen() {
     }
 
     public static void main(String[] args) throws Exception {
-        try (PostgreSQLContainer<?> database = new PostgreSQLContainer<>("postgres:18")) {
+        try (PostgreSQLContainer database = new PostgreSQLContainer("postgres:18")) {
             database.start();
 
             Flyway.configure()

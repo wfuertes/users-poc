@@ -12,29 +12,29 @@ You can run your application in dev mode that enables live coding using:
 ./mvnw quarkus:dev
 ```
 
-## Local PostgreSQL
+## PostgreSQL in development and tests
 
-Start the PostgreSQL 18 database used by the application with Docker Compose:
+Quarkus Dev Services starts a disposable PostgreSQL 18 container automatically
+in development and test modes. Docker or Podman must be available; no manually
+managed database is required:
 
 ```shell script
-docker compose up -d
+./mvnw quarkus:dev
 ```
 
-The database is available at `localhost:54321` with these credentials:
+Flyway applies the migrations from `src/main/resources/db/migration` whenever
+the application starts. Tests receive an isolated database and do not depend on
+the development database.
 
-| Setting | Value |
-| --- | --- |
-| Database | `users` |
-| Username | `postgres` |
-| Password | `postgres` |
-| JDBC URL | `jdbc:postgresql://localhost:54321/users` |
+To use the persistent Docker Compose database instead, start it and override the
+datasource configuration:
 
-Flyway runs automatically when Quarkus starts. To reset the local database and
-run all migrations from the beginning:
-
-```shell script
-docker compose down -v
-docker compose up -d
+```shell
+docker-compose up -d
+QUARKUS_DATASOURCE_JDBC_URL=jdbc:postgresql://localhost:54321/users \
+QUARKUS_DATASOURCE_USERNAME=postgres \
+QUARKUS_DATASOURCE_PASSWORD=postgres \
+./mvnw quarkus:dev
 ```
 
 ## jOOQ code generation
