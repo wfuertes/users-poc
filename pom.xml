@@ -23,6 +23,11 @@
     <postgresql.version>42.7.13</postgresql.version>
     <docker-maven-plugin.version>0.49.0</docker-maven-plugin.version>
     <build-helper-maven-plugin.version>3.6.1</build-helper-maven-plugin.version>
+
+    <!-- codegen database config -->
+    <codegen.database.name>users</codegen.database.name>
+    <codegen.database.user>postgres</codegen.database.user>
+    <codegen.database.password>postgres</codegen.database.password>
   </properties>
 
   <dependencyManagement>
@@ -98,9 +103,9 @@
               <name>postgres:18.6-bookworm</name>
               <run>
                 <env>
-                  <POSTGRES_DB>users</POSTGRES_DB>
-                  <POSTGRES_USER>postgres</POSTGRES_USER>
-                  <POSTGRES_PASSWORD>postgres</POSTGRES_PASSWORD>
+                  <POSTGRES_DB>${codegen.database.name}</POSTGRES_DB>
+                  <POSTGRES_USER>${codegen.database.user}</POSTGRES_USER>
+                  <POSTGRES_PASSWORD>${codegen.database.password}</POSTGRES_PASSWORD>
                 </env>
                 <ports>
                   <port>codegen.database.port:5432</port>
@@ -142,9 +147,9 @@
               <goal>migrate</goal>
             </goals>
             <configuration>
-              <url>jdbc:postgresql://localhost:${codegen.database.port}/users</url>
-              <user>postgres</user>
-              <password>postgres</password>
+              <url>jdbc:postgresql://localhost:${codegen.database.port}/${codegen.database.name}</url>
+              <user>${codegen.database.user}</user>
+              <password>${codegen.database.password}</password>
               <locations>
                 <location>filesystem:src/main/resources/db/migration</location>
               </locations>
@@ -178,9 +183,9 @@
             <configuration>
               <jdbc>
                 <driver>org.postgresql.Driver</driver>
-                <url>jdbc:postgresql://localhost:${codegen.database.port}/users</url>
-                <user>postgres</user>
-                <password>postgres</password>
+                <url>jdbc:postgresql://localhost:${codegen.database.port}/${codegen.database.name}</url>
+                <user>${codegen.database.user}</user>
+                <password>${codegen.database.password}</password>
               </jdbc>
               <generator>
                 <name>org.jooq.codegen.JavaGenerator</name>
