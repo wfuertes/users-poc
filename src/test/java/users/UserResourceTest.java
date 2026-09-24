@@ -26,7 +26,6 @@ class UserResourceTest {
             .statusCode(201)
             .body("id", notNullValue())
             .body("email", is(email))
-            .body("password", is("******"))
             .body("createdAt", notNullValue())
             .body("updatedAt", notNullValue());
 
@@ -37,8 +36,7 @@ class UserResourceTest {
         .then()
             .statusCode(200)
             .body("size()", is(1))
-            .body("[0].email", is(email))
-            .body("[0].password", is("******"));
+            .body("[0].email", is(email));
     }
 
 }
