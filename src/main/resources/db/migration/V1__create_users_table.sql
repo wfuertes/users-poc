@@ -6,7 +6,7 @@ CREATE TABLE users (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE OR REPLACE FUNCTION update_users_updated_at()
+CREATE OR REPLACE FUNCTION set_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
     NEW.updated_at = CURRENT_TIMESTAMP;
@@ -17,4 +17,4 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER users_updated_at_trigger
 BEFORE UPDATE ON users
 FOR EACH ROW
-EXECUTE FUNCTION update_users_updated_at();
+EXECUTE FUNCTION set_updated_at();
