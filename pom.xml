@@ -15,19 +15,20 @@
     <maven.compiler.release>25</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
-    <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
     <quarkus.platform.version>3.39.4</quarkus.platform.version>
     <skipITs>true</skipITs>
     <surefire-plugin.version>3.5.6</surefire-plugin.version>
     <jooq.version>3.21.8</jooq.version>
+    <flyway.version>13.7.0</flyway.version>
+    <postgresql.version>42.7.13</postgresql.version>
+    <docker-maven-plugin.version>0.49.0</docker-maven-plugin.version>
   </properties>
 
   <dependencyManagement>
     <dependencies>
       <dependency>
-        <groupId>${quarkus.platform.group-id}</groupId>
-        <artifactId>${quarkus.platform.artifact-id}</artifactId>
+        <groupId>io.quarkus.platform</groupId>
+        <artifactId>quarkus-bom</artifactId>
         <version>${quarkus.platform.version}</version>
         <type>pom</type>
         <scope>import</scope>
@@ -75,89 +76,145 @@
       <artifactId>rest-assured</artifactId>
       <scope>test</scope>
     </dependency>
-    <dependency>
-      <groupId>org.jooq</groupId>
-      <artifactId>jooq-codegen</artifactId>
-      <version>${jooq.version}</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.testcontainers</groupId>
-      <artifactId>testcontainers-postgresql</artifactId>
-      <scope>provided</scope>
-    </dependency>
   </dependencies>
 
   <build>
     <plugins>
       <plugin>
-        <groupId>${quarkus.platform.group-id}</groupId>
+        <groupId>io.quarkus.platform</groupId>
         <artifactId>quarkus-maven-plugin</artifactId>
         <version>${quarkus.platform.version}</version>
         <extensions>true</extensions>
       </plugin>
       <plugin>
-        <artifactId>maven-compiler-plugin</artifactId>
-        <version>${compiler-plugin.version}</version>
+        <groupId>io.fabric8</groupId>
+        <artifactId>docker-maven-plugin</artifactId>
+        <version>${docker-maven-plugin.version}</version>
+        <configuration>
+          <images>
+            <image>
+              <alias>codegen-postgres</alias>
+              <name>postgres:18.6-bookworm</name>
+              <run>
+                <env>
+                  <POSTGRES_DB>users</POSTGRES_DB>
+                  <POSTGRES_USER>postgres</POSTGRES_USER>
+                  <POSTGRES_PASSWORD>postgres</POSTGRES_PASSWORD>
+                </env>
+                <ports>
+                  <port>codegen.database.port:5432</port>
+                </ports>
+                <wait>
+                  <log>database system is ready to accept connections</log>
+                  <time>30000</time>
+                </wait>
+              </run>
+            </image>
+          </images>
+        </configuration>
         <executions>
           <execution>
-            <id>compile-codegen-runner</id>
+            <id>start-codegen-database</id>
+            <phase>initialize</phase>
+            <goals>
+              <goal>start</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>stop-codegen-database</id>
+            <phase>process-sources</phase>
+            <goals>
+              <goal>stop</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.flywaydb</groupId>
+        <artifactId>flyway-maven-plugin</artifactId>
+        <version>${flyway.version}</version>
+        <executions>
+          <execution>
+            <id>migrate-codegen-database</id>
             <phase>generate-sources</phase>
             <goals>
-              <goal>compile</goal>
+              <goal>migrate</goal>
             </goals>
             <configuration>
-              <compileSourceRoots>
-                <compileSourceRoot>${project.basedir}/src/codegen/java</compileSourceRoot>
-              </compileSourceRoots>
-              <outputDirectory>${project.build.directory}/codegen-classes</outputDirectory>
+              <url>jdbc:postgresql://localhost:${codegen.database.port}/users</url>
+              <user>postgres</user>
+              <password>postgres</password>
+              <locations>
+                <location>filesystem:src/main/resources/db/migration</location>
+              </locations>
             </configuration>
           </execution>
         </executions>
-        <configuration>
-          <parameters>true</parameters>
-        </configuration>
+        <dependencies>
+          <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+            <version>${flyway.version}</version>
+          </dependency>
+          <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>${postgresql.version}</version>
+          </dependency>
+        </dependencies>
       </plugin>
       <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>exec-maven-plugin</artifactId>
-        <version>3.6.2</version>
+        <groupId>org.jooq</groupId>
+        <artifactId>jooq-codegen-maven</artifactId>
+        <version>${jooq.version}</version>
         <executions>
           <execution>
             <id>generate-jooq</id>
             <phase>generate-sources</phase>
             <goals>
-              <goal>java</goal>
+              <goal>generate</goal>
             </goals>
             <configuration>
-              <mainClass>users.codegen.JooqCodegen</mainClass>
-              <classpathScope>compile</classpathScope>
-              <cleanupDaemonThreads>false</cleanupDaemonThreads>
-              <additionalClasspathElements>
-                <additionalClasspathElement>${project.build.directory}/codegen-classes</additionalClasspathElement>
-              </additionalClasspathElements>
+              <jdbc>
+                <driver>org.postgresql.Driver</driver>
+                <url>jdbc:postgresql://localhost:${codegen.database.port}/users</url>
+                <user>postgres</user>
+                <password>postgres</password>
+              </jdbc>
+              <generator>
+                <name>org.jooq.codegen.JavaGenerator</name>
+                <database>
+                  <name>org.jooq.meta.postgres.PostgresDatabase</name>
+                  <inputSchema>public</inputSchema>
+                  <includes>users</includes>
+                  <excludes>flyway_schema_history</excludes>
+                </database>
+                <generate>
+                  <records>true</records>
+                  <fluentSetters>true</fluentSetters>
+                </generate>
+                <target>
+                  <packageName>users.jooq</packageName>
+                  <directory>${project.build.directory}/generated-sources/jooq</directory>
+                </target>
+              </generator>
             </configuration>
           </execution>
         </executions>
+        <dependencies>
+          <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>${postgresql.version}</version>
+          </dependency>
+        </dependencies>
       </plugin>
       <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>build-helper-maven-plugin</artifactId>
-        <version>3.6.1</version>
-        <executions>
-          <execution>
-            <id>add-jooq-generated-sources</id>
-            <phase>generate-sources</phase>
-            <goals>
-              <goal>add-source</goal>
-            </goals>
-            <configuration>
-              <sources>
-                <source>${project.build.directory}/generated-sources/jooq</source>
-              </sources>
-            </configuration>
-          </execution>
-        </executions>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>${compiler-plugin.version}</version>
+        <configuration>
+          <parameters>true</parameters>
+        </configuration>
       </plugin>
       <plugin>
         <artifactId>maven-surefire-plugin</artifactId>
