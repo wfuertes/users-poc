@@ -19,7 +19,7 @@ class UserResourceTest {
 
         given()
             .contentType(MediaType.APPLICATION_JSON)
-            .body(new CreateUser(email, "secret-password"))
+            .body(new CreateUserDto(email, "secret-password"))
         .when()
             .post("/users")
         .then()

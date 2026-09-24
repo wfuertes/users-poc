@@ -2,12 +2,9 @@ package users;
 
 import static users.jooq.tables.Users.USERS;
 
-import java.time.OffsetDateTime;
 import java.util.List;
-import java.util.UUID;
 
 import org.jooq.DSLContext;
-import org.jooq.Record5;
 import org.jooq.impl.DSL;
 import org.jooq.tools.StringUtils;
 
@@ -35,7 +32,7 @@ public class UserResource {
     @POST
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    public Response createUser(CreateUser createUser) {
+    public Response createUser(CreateUserDto createUser) {
         UsersRecord record = dsl.newRecord(USERS)
                 .setEmail(createUser.email())
                 .setPassword(createUser.password());
@@ -63,31 +60,21 @@ public class UserResource {
                 .asTable("deferred");
 
         // 2. The outer query: Joins the full table ONLY to the 10 fetched IDs
-        List<User> users = dsl.select(USERS.ID, USERS.EMAIL, USERS.PASSWORD, USERS.CREATED_AT, USERS.UPDATED_AT)
+        List<UserDto> users = dsl.select(USERS.ID, USERS.EMAIL, USERS.PASSWORD, USERS.CREATED_AT, USERS.UPDATED_AT)
                 .from(USERS)
                 .join(deferred).on(USERS.ID.eq(deferred.field(USERS.ID)))
-                .orderBy(deferred.field(USERS.ID).desc()) // Maintain the subquery's sort order
+                .orderBy(deferred.field(USERS.ID).desc())
                 .fetch()
-                .map(UserResource::deserialize);
+                .map(record -> deserialize(record.into(UsersRecord.class)));
 
         return Response.ok(users).build();
     }
 
-    private static User deserialize(UsersRecord record) {
-        return new User(
+    private static UserDto deserialize(UsersRecord record) {
+        return new UserDto(
                 record.getId().toString(),
                 record.getEmail(),
-                "******",
                 record.getCreatedAt().toInstant(),
                 record.getUpdatedAt().toInstant());
-    }
-
-    private static User deserialize(Record5<UUID, String, String, OffsetDateTime, OffsetDateTime> record) {
-        return new User(
-                record.value1().toString(),
-                record.value2(),
-                "******",
-                record.value4().toInstant(),
-                record.value5().toInstant());
     }
 }
